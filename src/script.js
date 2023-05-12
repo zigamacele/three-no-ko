@@ -7,10 +7,25 @@ import './style.css';
 
 // DATGUI
 const gui = new dat.GUI({});
+gui.closed = true;
+
+// PARAMETERS
+const parameters = {
+  count: 100,
+  materialColor: '#ffeded',
+  randomColors: ['#d13d65', '#7fadca', '#f5ee53', '#ffeded'],
+  childPosition: { x: 500, y: 30, z: 30 },
+};
 
 // TEXTURE LOADER
 const textureLoader = new THREE.TextureLoader();
-const matcapTexture = textureLoader.load('textures/matcaps/7.png');
+const gradientTexture = textureLoader.load('textures/gradient/5.jpg');
+gradientTexture.magFilter = THREE.NearestFilter;
+
+const material = new THREE.MeshToonMaterial({
+  color: parameters.randomColors[Math.random() * 4],
+  gradientMap: gradientTexture,
+});
 
 // CANVAS
 const canvas = document.querySelector('.webgl');
@@ -26,75 +41,113 @@ dracoLoader.setDecoderPath('/draco/');
 const glftLoader = new GLTFLoader();
 glftLoader.setDRACOLoader(dracoLoader);
 
-glftLoader.load('models/heart.glb', (geometry) => {
-  const model = geometry.scene;
-  // const material = new THREE.MeshStandardMaterial({ color: '#fff000' });
-  // model.children[0].material.color = new THREE.Color(0xff0000);
-  model.children[0].material.matcap = matcapTexture;
-  scene.add(model);
-  console.log(geometry.scene);
-});
+// FLOW
+let flowGroup = null;
+const generateFlow = () => {
+  if (flowGroup !== null) {
+    scene.remove(flowGroup);
+  }
+
+  flowGroup = new THREE.Group();
+  flowGroup.rotation.z = -Math.PI * 0.05;
+  const count = parameters.count;
+
+  // usagi
+  glftLoader.load('models/usagi.glb', (gltf) => {
+    for (let index = 0; index < count; index++) {
+      const child = gltf.scene.children[0].clone();
+      const randomScale = Math.random() * 0.5;
+      child.material = new THREE.MeshToonMaterial({
+        color: parameters.randomColors[Math.round(Math.random() * 4)],
+        gradientMap: gradientTexture,
+      });
+      child.position.set(
+        (Math.random() - 0.5) * parameters.childPosition.x,
+        (Math.random() - 0.5) * parameters.childPosition.y,
+        (Math.random() - 0.5) * parameters.childPosition.z
+      );
+      child.rotation.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      child.scale.set(randomScale, randomScale, randomScale);
+      flowGroup.add(child);
+    }
+  });
+
+  // star
+  glftLoader.load('models/star.glb', (gltf) => {
+    gltf.scene.traverse((child) => {
+      child.material = material;
+    });
+    flowGroup.add(gltf.scene);
+  });
+
+  // heart
+  glftLoader.load('models/heart.glb', (gltf) => {
+    gltf.scene.traverse((child) => {
+      child.material = material;
+    });
+    flowGroup.add(gltf.scene);
+  });
+
+  scene.add(flowGroup);
+};
+
+generateFlow();
+
+gui
+  .add(parameters.childPosition, 'x')
+  .min(0)
+  .max(1000)
+  .step(1)
+  .onFinishChange(generateFlow);
+gui
+  .add(parameters.childPosition, 'y')
+  .min(0)
+  .max(1000)
+  .step(1)
+  .onFinishChange(generateFlow);
+gui
+  .add(parameters.childPosition, 'z')
+  .min(0)
+  .max(1000)
+  .step(1)
+  .onFinishChange(generateFlow);
 
 //LIGHTS
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
 scene.add(ambientLight);
-gui.add(ambientLight, 'intensity').min(0).max(1).step(0.001);
+gui
+  .add(ambientLight, 'intensity')
+  .min(0)
+  .max(1)
+  .step(0.001)
+  .name('AmbLight Inte');
 
-const directionalLight = new THREE.DirectionalLight(0x00fffc, 1);
-directionalLight.position.set(10, 5, 10);
+const directionalLight = new THREE.DirectionalLight(0xffffff, 1);
+directionalLight.position.set(1, 1, 0);
 scene.add(directionalLight);
-
-const hemisphereLight = new THREE.HemisphereLight(0xff0000, 0x0000ff, 0.3);
-scene.add(hemisphereLight);
-
-const pointLight = new THREE.PointLight(0xff9000, 0.5, 5, 2);
-pointLight.position.set(1, -0.5, 1);
-scene.add(pointLight);
-
-const rectAreaLight = new THREE.RectAreaLight(0x4e00ff, 2, 1, 1);
-rectAreaLight.position.set(-1.5, 0, 1.5);
-rectAreaLight.lookAt(new THREE.Vector3());
-scene.add(rectAreaLight);
-
-const spotlight = new THREE.SpotLight(0x78ff00, 5, 10, Math.PI * 0.1, 0.25, 1);
-spotlight.position.set(10, 10, 10);
-scene.add(spotlight);
-
-spotlight.target.position.x = -0.75;
-scene.add(spotlight.target);
-
-//helpers
-
-const hemisphereLightHelper = new THREE.HemisphereLightHelper(
-  hemisphereLight,
-  1
-);
-scene.add(hemisphereLightHelper);
-
-const directionalLightHelper = new THREE.DirectionalLightHelper(
-  directionalLight,
-  0.2
-);
-scene.add(directionalLightHelper);
-
-const pointLightHelper = new THREE.PointLightHelper(pointLight, 0.2);
-scene.add(pointLightHelper);
-
-const spotLightHelper = new THREE.SpotLightHelper(spotlight);
-scene.add(spotLightHelper);
+gui
+  .add(directionalLight, 'intensity')
+  .min(0)
+  .max(1)
+  .step(0.001)
+  .name('DirLight Inte');
 
 // FLOOR
-const floor = new THREE.Mesh(
-  new THREE.PlaneGeometry(50, 50),
-  new THREE.MeshStandardMaterial({
-    color: '#444444',
-    metalness: 0,
-    roughness: 0.5,
-  })
-);
-floor.receiveShadow = true;
-floor.rotation.x = -Math.PI * 0.5;
-scene.add(floor);
+// const floor = new THREE.Mesh(
+//   new THREE.PlaneGeometry(50, 50),
+//   new THREE.MeshStandardMaterial({
+//     color: '#444444',
+//     metalness: 0,
+//     roughness: 0.5,
+//   })
+// );
+// floor.receiveShadow = true;
+// floor.rotation.x = -Math.PI * 0.5;
+// scene.add(floor);
 
 // CAMERA
 const camera = new THREE.PerspectiveCamera(
@@ -105,7 +158,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-camera.position.set(-8, 4, 8);
+camera.position.set(0, 10, 120);
 controls.update();
 
 // RESIZING OF WINDOW
@@ -132,8 +185,21 @@ renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
 const clock = new THREE.Clock();
 
 const tick = () => {
+  const elapsedTime = clock.getElapsedTime();
   // UPDATE CONTROLS
   controls.update();
+
+  // FLOW ROTATION
+  for (const object of flowGroup.children) {
+    const randomValue = Math.random() * 0.005;
+    object.position.x += 0.03;
+    object.rotation.z += randomValue;
+    object.rotation.y += randomValue;
+  }
+
+  // LIGhT ROTATION
+  directionalLight.position.x = Math.sin(clock.getElapsedTime());
+  directionalLight.position.z = Math.cos(clock.getElapsedTime());
 
   // RENDER
   renderer.render(scene, camera);
