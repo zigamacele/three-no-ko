@@ -11,21 +11,20 @@ gui.closed = true;
 
 // PARAMETERS
 const parameters = {
-  count: 100,
+  parCount: 1000,
+  perSize: 3,
+  parRadius: 500,
+  count: 250,
   materialColor: '#ffeded',
   randomColors: ['#d13d65', '#7fadca', '#f5ee53', '#ffeded'],
-  childPosition: { x: 500, y: 30, z: 30 },
+  childPosition: { x: 500, y: 40, z: 30 },
 };
 
 // TEXTURE LOADER
 const textureLoader = new THREE.TextureLoader();
+const particleTexture = textureLoader.load('textures/particles/1.png');
 const gradientTexture = textureLoader.load('textures/gradient/5.jpg');
 gradientTexture.magFilter = THREE.NearestFilter;
-
-const material = new THREE.MeshToonMaterial({
-  color: parameters.randomColors[Math.random() * 4],
-  gradientMap: gradientTexture,
-});
 
 // CANVAS
 const canvas = document.querySelector('.webgl');
@@ -78,18 +77,50 @@ const generateFlow = () => {
 
   // star
   glftLoader.load('models/star.glb', (gltf) => {
-    gltf.scene.traverse((child) => {
-      child.material = material;
-    });
-    flowGroup.add(gltf.scene);
+    for (let index = 0; index < count; index++) {
+      const child = gltf.scene.children[0].clone();
+      const randomScale = Math.random() * 0.5;
+      child.material = new THREE.MeshToonMaterial({
+        color: parameters.randomColors[Math.round(Math.random() * 4)],
+        gradientMap: gradientTexture,
+      });
+      child.position.set(
+        (Math.random() - 0.5) * parameters.childPosition.x,
+        (Math.random() - 0.5) * parameters.childPosition.y,
+        (Math.random() - 0.5) * parameters.childPosition.z
+      );
+      child.rotation.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      child.scale.set(randomScale, randomScale, randomScale);
+      flowGroup.add(child);
+    }
   });
 
   // heart
   glftLoader.load('models/heart.glb', (gltf) => {
-    gltf.scene.traverse((child) => {
-      child.material = material;
-    });
-    flowGroup.add(gltf.scene);
+    for (let index = 0; index < count; index++) {
+      const child = gltf.scene.children[0].clone();
+      const randomScale = Math.random() * 0.5;
+      child.material = new THREE.MeshToonMaterial({
+        color: parameters.randomColors[Math.round(Math.random() * 4)],
+        gradientMap: gradientTexture,
+      });
+      child.position.set(
+        (Math.random() - 0.5) * parameters.childPosition.x,
+        (Math.random() - 0.5) * parameters.childPosition.y,
+        (Math.random() - 0.5) * parameters.childPosition.z
+      );
+      child.rotation.set(
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2,
+        Math.random() * Math.PI * 2
+      );
+      child.scale.set(randomScale, randomScale, randomScale);
+      flowGroup.add(child);
+    }
   });
 
   scene.add(flowGroup);
@@ -97,6 +128,12 @@ const generateFlow = () => {
 
 generateFlow();
 
+gui
+  .add(parameters, 'count')
+  .min(10)
+  .max(500)
+  .step(1)
+  .onFinishChange(generateFlow);
 gui
   .add(parameters.childPosition, 'x')
   .min(0)
@@ -115,6 +152,37 @@ gui
   .max(1000)
   .step(1)
   .onFinishChange(generateFlow);
+
+// PARTICLES
+
+const particlesGeometry = new THREE.BufferGeometry();
+const count = parameters.parCount;
+
+const positions = new Float32Array(count * 3);
+const colors = new Float32Array(count * 3);
+
+for (let i = 0; i < count * 3; i++) {
+  positions[i] = (Math.random() - 0.5) * parameters.parRadius;
+  colors[i] = parameters.materialColor;
+}
+
+particlesGeometry.setAttribute(
+  'position',
+  new THREE.BufferAttribute(positions, 3)
+);
+
+particlesGeometry.setAttribute('color', new THREE.BufferAttribute(colors, 3));
+
+const particlesMaterial = new THREE.PointsMaterial({
+  alphaMap: particleTexture,
+  transparent: true,
+  size: parameters.perSize,
+  sizeAttenuation: true,
+  depthWrite: false,
+});
+
+const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+scene.add(particles);
 
 //LIGHTS
 const ambientLight = new THREE.AmbientLight(0xffffff, 0.5);
@@ -158,7 +226,7 @@ const camera = new THREE.PerspectiveCamera(
 );
 const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
-camera.position.set(0, 10, 120);
+camera.position.set(0, 10, 50);
 controls.update();
 
 // RESIZING OF WINDOW
@@ -196,6 +264,9 @@ const tick = () => {
     object.rotation.z += randomValue;
     object.rotation.y += randomValue;
   }
+
+  // PARTICLES SIZE
+  particlesMaterial.size = Math.abs(Math.sin(clock.getElapsedTime()) + 1 * 3);
 
   // LIGhT ROTATION
   directionalLight.position.x = Math.sin(clock.getElapsedTime());
