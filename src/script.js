@@ -1,6 +1,5 @@
 import * as dat from 'dat.gui';
 import * as THREE from 'three';
-import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader';
 import './style.css';
@@ -8,7 +7,7 @@ import './style.css';
 // DATGUI
 const gui = new dat.GUI({});
 gui.closed = true;
-gui.hide = true;
+gui.hide();
 
 // PARAMETERS
 const parameters = {
@@ -230,7 +229,7 @@ const backdrop = new THREE.Mesh(
 backdrop.receiveShadow = true;
 backdrop.position.z = -500;
 backdrop.position.y = -1000;
-backdrop.rotation.x = Math.PI * 0.1;
+backdrop.rotation.x = Math.PI * 10;
 scene.add(backdrop);
 
 // CAMERA
@@ -267,6 +266,7 @@ window.addEventListener('resize', () => {
   //UPDATE SIZES
   sizes.height = window.innerHeight;
   sizes.width = window.innerWidth;
+  console.log(backdrop);
 
   //UPDATE CAMERA
   camera.aspect = sizes.width / sizes.height;

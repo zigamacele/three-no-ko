@@ -49,11 +49,12 @@ body {
 }
 
 .artist-name {
+  font-size: 30px;
   letter-spacing: 10px;
 }
 
 .song-title {
-  font-size: 15vmin;
+  font-size: 13vmin;
   font-family: 'Cabin', sans-serif;
 }
 
