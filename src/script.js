@@ -8,6 +8,7 @@ import './style.css';
 // DATGUI
 const gui = new dat.GUI({});
 gui.closed = true;
+gui.hide = true;
 
 // PARAMETERS
 const parameters = {
@@ -18,6 +19,20 @@ const parameters = {
   materialColor: '#ffeded',
   randomColors: ['#d13d65', '#7fadca', '#f5ee53', '#ffeded'],
   childPosition: { x: 500, y: 40, z: 30 },
+};
+
+const textSelector = document.querySelector('.fixed-text');
+
+// LIGHT/DARK MODE
+const lightMode = {
+  modelColor: new THREE.Color(
+    parameters.randomColors[Math.round(Math.random() * 4)]
+  ),
+  parColor: new THREE.Color('white'),
+};
+const darkMode = {
+  modelColor: new THREE.Color('#39444e'),
+  parColor: new THREE.Color('#ee3149'),
 };
 
 // TEXTURE LOADER
@@ -154,7 +169,6 @@ gui
   .onFinishChange(generateFlow);
 
 // PARTICLES
-
 const particlesGeometry = new THREE.BufferGeometry();
 const count = parameters.parCount;
 
@@ -204,30 +218,49 @@ gui
   .step(0.001)
   .name('DirLight Inte');
 
-// FLOOR
-// const floor = new THREE.Mesh(
-//   new THREE.PlaneGeometry(50, 50),
-//   new THREE.MeshStandardMaterial({
-//     color: '#444444',
-//     metalness: 0,
-//     roughness: 0.5,
-//   })
-// );
-// floor.receiveShadow = true;
-// floor.rotation.x = -Math.PI * 0.5;
-// scene.add(floor);
+// BACKDROP;
+const backdrop = new THREE.Mesh(
+  new THREE.PlaneGeometry(sizes.width, sizes.height),
+  new THREE.MeshStandardMaterial({
+    color: '#444444',
+    metalness: 0,
+    roughness: 0.5,
+  })
+);
+backdrop.receiveShadow = true;
+backdrop.position.z = -500;
+backdrop.position.y = -1000;
+backdrop.rotation.x = Math.PI * 0.1;
+scene.add(backdrop);
 
 // CAMERA
+const cameraGroup = new THREE.Group();
 const camera = new THREE.PerspectiveCamera(
   75,
   sizes.width / sizes.height,
   0.1,
   1000
 );
-const controls = new OrbitControls(camera, canvas);
-controls.enableDamping = true;
-camera.position.set(0, 10, 50);
-controls.update();
+camera.position.set(0, 0, 55);
+cameraGroup.add(camera);
+scene.add(cameraGroup);
+
+// CURSOR
+const cursor = {};
+cursor.x = 0;
+cursor.y = 0;
+
+window.addEventListener('mousemove', (event) => {
+  cursor.x = event.clientX / sizes.width - 0.5;
+  cursor.y = event.clientY / sizes.height - 0.5;
+});
+
+// SCROLL
+let scrollY = window.scrollY;
+
+window.addEventListener('scroll', () => {
+  scrollY = window.scrollY;
+});
 
 // RESIZING OF WINDOW
 window.addEventListener('resize', () => {
@@ -245,28 +278,63 @@ window.addEventListener('resize', () => {
 });
 
 // RENDERER
-const renderer = new THREE.WebGLRenderer({ canvas });
+const renderer = new THREE.WebGLRenderer({ canvas, alpha: true });
 renderer.setSize(sizes.width, sizes.height);
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+renderer.setClearColor(parameters.backgroundColor);
+renderer.setClearColor(new THREE.Color('#d13d65'), 0);
 
 // ANIMATION
 const clock = new THREE.Clock();
+const objectDistance = 4;
+let previousTime = 0;
 
 const tick = () => {
   const elapsedTime = clock.getElapsedTime();
-  // UPDATE CONTROLS
-  controls.update();
+  const deltaTime = elapsedTime - previousTime;
+  previousTime = elapsedTime;
+
+  // UPDATE CAMERA
+  camera.position.y = (-scrollY / sizes.height) * objectDistance;
+
+  const parallaxX = cursor.x * 5;
+  const parallaxY = cursor.y * 5;
+  cameraGroup.position.x +=
+    (parallaxX - cameraGroup.position.x) * 5 * deltaTime;
+  cameraGroup.position.y +=
+    (parallaxY - cameraGroup.position.y) * 5 * deltaTime;
+
+  // UPDATE BACKDROP
+  // console.log('BACKDROP', backdrop.position.y, 'SCREEN', sizes.height);
+  backdrop.position.y = scrollY - sizes.height;
 
   // FLOW ROTATION
   for (const object of flowGroup.children) {
     const randomValue = Math.random() * 0.005;
-    object.position.x += 0.03;
-    object.rotation.z += randomValue;
-    object.rotation.y += randomValue;
+
+    if (scrollY < sizes.height) {
+      if (object.material.color.equals(darkMode.modelColor)) {
+        textSelector.style.color = 'black';
+        object.material.color = new THREE.Color(
+          parameters.randomColors[Math.round(Math.random() * 4)]
+        );
+      }
+      particles.material.color = new THREE.Color('white');
+      object.position.x += 0.03;
+      object.rotation.z += randomValue;
+      object.rotation.y += randomValue;
+    } else {
+      textSelector.style.color = 'white';
+      particles.material.color = darkMode.parColor;
+      object.material.color = darkMode.modelColor;
+      object.position.x -= 0.03;
+      object.rotation.z -= randomValue;
+      object.rotation.y -= randomValue;
+    }
   }
 
   // PARTICLES SIZE
-  particlesMaterial.size = Math.abs(Math.sin(clock.getElapsedTime()) + 1 * 3);
+  particlesMaterial.size = Math.abs(Math.sin(clock.getElapsedTime()) + 0.5 * 3);
 
   // LIGhT ROTATION
   directionalLight.position.x = Math.sin(clock.getElapsedTime());
